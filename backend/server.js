@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 const db = require('./db'); // Loads our connection pool bridge
 
@@ -10,8 +11,11 @@ const PORT = process.env.PORT || 5000;
 app.use(cors()); // Enables frontend browser communication
 app.use(express.json()); // Allows our server to read JSON data sent by the frontend
 
+// Serve the web page (frontend folder) from the same server
+app.use(express.static(path.join(__dirname, '..', 'frontend')));
+
 // ==========================================
-// 0. SETUP: Create the clubs table (run once)
+// 0. SETUP: Create the clubs table (safe to run more than once)
 // ==========================================
 app.get('/setup', async (req, res) => {
     try {
@@ -36,7 +40,6 @@ app.post('/api/clubs', async (req, res) => {
     try {
         const { name, president, category, member_count, description } = req.body;
 
-        // Simple safety check to ensure required text properties are present
         if (!name || !president || !category) {
             return res.status(400).json({ error: 'Name, President, and Category are required.' });
         }
@@ -44,7 +47,6 @@ app.post('/api/clubs', async (req, res) => {
         const query = `INSERT INTO clubs (name, president, category, member_count, description)
                        VALUES (?, ?, ?, ?, ?)`;
 
-        // Positional placeholders (?) strictly prevent SQL injection
         const [result] = await db.query(query, [name, president, category, member_count || 0, description]);
 
         res.status(201).json({ message: 'Club profile created successfully!', clubId: result.insertId });
@@ -60,7 +62,7 @@ app.get('/api/clubs', async (req, res) => {
     try {
         const query = 'SELECT * FROM clubs ORDER BY id DESC';
         const [rows] = await db.query(query);
-        res.json(rows); // Sends back the entire roster array to the frontend layout
+        res.json(rows);
     } catch (err) {
         res.status(500).json({ error: 'Database error while reading roster.', details: err.message });
     }
