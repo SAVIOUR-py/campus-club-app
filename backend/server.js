@@ -11,23 +11,42 @@ app.use(cors()); // Enables frontend browser communication
 app.use(express.json()); // Allows our server to read JSON data sent by the frontend
 
 // ==========================================
+// 0. SETUP: Create the clubs table (run once)
+// ==========================================
+app.get('/setup', async (req, res) => {
+    try {
+        await db.query(`CREATE TABLE IF NOT EXISTS clubs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            president VARCHAR(100) NOT NULL,
+            category VARCHAR(50) NOT NULL,
+            member_count INT DEFAULT 0,
+            description TEXT
+        )`);
+        res.json({ message: 'Table clubs is ready.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ==========================================
 // 1. CREATE: Add a new Campus Club profile
 // ==========================================
 app.post('/api/clubs', async (req, res) => {
     try {
         const { name, president, category, member_count, description } = req.body;
-        
+
         // Simple safety check to ensure required text properties are present
         if (!name || !president || !category) {
             return res.status(400).json({ error: 'Name, President, and Category are required.' });
         }
 
-        const query = `INSERT INTO clubs (name, president, category, member_count, description) 
+        const query = `INSERT INTO clubs (name, president, category, member_count, description)
                        VALUES (?, ?, ?, ?, ?)`;
-        
-        // Run query using positional placeholders (?) to strictly prevent SQL injections
+
+        // Positional placeholders (?) strictly prevent SQL injection
         const [result] = await db.query(query, [name, president, category, member_count || 0, description]);
-        
+
         res.status(201).json({ message: 'Club profile created successfully!', clubId: result.insertId });
     } catch (err) {
         res.status(500).json({ error: 'Database error while saving profile.', details: err.message });
@@ -55,10 +74,10 @@ app.put('/api/clubs/:id', async (req, res) => {
         const { id } = req.params;
         const { name, president, category, member_count, description } = req.body;
 
-        const query = `UPDATE clubs 
-                       SET name = ?, president = ?, category = ?, member_count = ?, description = ? 
+        const query = `UPDATE clubs
+                       SET name = ?, president = ?, category = ?, member_count = ?, description = ?
                        WHERE id = ?`;
-        
+
         const [result] = await db.query(query, [name, president, category, member_count, description, id]);
 
         if (result.affectedRows === 0) {
@@ -78,7 +97,7 @@ app.delete('/api/clubs/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const query = 'DELETE FROM clubs WHERE id = ?';
-        
+
         const [result] = await db.query(query, [id]);
 
         if (result.affectedRows === 0) {
@@ -90,23 +109,8 @@ app.delete('/api/clubs/:id', async (req, res) => {
         res.status(500).json({ error: 'Database error while removing profile.', details: err.message });
     }
 });
-const mysql = require('mysql2');
-require('dotenv').config();
 
-const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    ssl: { rejectUnauthorized: false },
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
-
-module.exports = pool.promise();
 // Start the Express network listening pipeline
 app.listen(PORT, () => {
-    console.log(`🚀 Server successfully launched! Listening on host port: ${PORT}`);
+    console.log(`Server successfully launched! Listening on host port: ${PORT}`);
 });
