@@ -4,8 +4,8 @@
  * Handles all async FETCH API network request calls to our Node backend server.
  */
 
-// Base endpoint configuration matching our running Express API server port mapping
-const API_URL = 'http://localhost:5000/api/clubs';
+// Base endpoint: the live API deployed on Render
+const API_URL = 'https://campus-club-app.onrender.com/api/clubs';
 
 // DOM Elements Cache
 const clubForm = document.getElementById('club-form');
@@ -20,7 +20,7 @@ const formTitle = document.getElementById('form-title');
 const submitBtn = document.getElementById('submit-btn');
 const cancelBtn = document.getElementById('cancel-btn');
 
-// Fire initial data load sequence when browser tree maps load up safely
+// Load the roster when the page is ready
 document.addEventListener('DOMContentLoaded', fetchClubRoster);
 
 // ==========================================
@@ -30,10 +30,10 @@ async function fetchClubRoster() {
     try {
         const response = await fetch(API_URL);
         if (!response.ok) throw new Error('Network failure while fetching profiles.');
-        
+
         const clubs = await response.json();
-        
-        // Wipe out any stale layouts inside our container
+
+        // Clear any old cards
         rosterList.innerHTML = '';
 
         if (clubs.length === 0) {
@@ -41,11 +41,11 @@ async function fetchClubRoster() {
             return;
         }
 
-        // Run map layout iteration loops to generate profile blocks dynamically
+        // Build a card for each club
         clubs.forEach(club => {
             const card = document.createElement('div');
             card.className = 'club-card';
-            
+
             card.innerHTML = `
                 <div>
                     <h3 class="club-title">${escapeHTML(club.name)}</h3>
@@ -71,7 +71,7 @@ async function fetchClubRoster() {
 // ACTION: CREATE & UPDATE Submissions
 // ==========================================
 clubForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); // Stop native page navigation triggers
+    e.preventDefault(); // Stop the normal page reload
 
     const clubId = clubIdInput.value;
     const clubData = {
@@ -84,8 +84,8 @@ clubForm.addEventListener('submit', async (e) => {
 
     try {
         let response;
-        
-        // If clubId contains a value, we know the user is editing an item (UPDATE)
+
+        // If clubId has a value, the user is editing (UPDATE)
         if (clubId) {
             response = await fetch(`${API_URL}/${clubId}`, {
                 method: 'PUT',
@@ -93,7 +93,7 @@ clubForm.addEventListener('submit', async (e) => {
                 body: JSON.stringify(clubData)
             });
         } else {
-            // Otherwise, we know it's a completely new entry (CREATE)
+            // Otherwise it's a new entry (CREATE)
             response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -105,9 +105,9 @@ clubForm.addEventListener('submit', async (e) => {
 
         const result = await response.json();
         alert(result.message);
-        
+
         resetFormState();
-        fetchClubRoster(); // Refresh the list without page reloads
+        fetchClubRoster(); // Refresh the list without reloading the page
     } catch (err) {
         alert(`Action failed: ${err.message}`);
     }
@@ -116,7 +116,7 @@ clubForm.addEventListener('submit', async (e) => {
 // ==========================================
 // UTILITY: Prepare Form Fields for UPDATE
 // ==========================================
-window.prepareUpdate = function(club) {
+window.prepareUpdate = function (club) {
     clubIdInput.value = club.id;
     nameInput.value = club.name;
     presidentInput.value = club.president;
@@ -124,16 +124,16 @@ window.prepareUpdate = function(club) {
     memberCountInput.value = club.member_count;
     descriptionInput.value = club.description || '';
 
-    // Transform static labels into editable state trackers visually
+    // Switch the form into edit mode
     formTitle.textContent = '✏️ Modify Campus Club Profile';
     submitBtn.textContent = 'Apply Profile Changes';
     cancelBtn.classList.remove('hidden');
-    
-    // Smoothly scroll browser window to form coordinates panel block view
+
+    // Scroll up to the form
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-// Reset state when cancelling modifications
+// Reset the form when cancelling an edit
 cancelBtn.addEventListener('click', resetFormState);
 
 function resetFormState() {
@@ -147,7 +147,7 @@ function resetFormState() {
 // ==========================================
 // ACTION: DELETE - Remove Club Profile
 // ==========================================
-window.deleteClubProfile = async function(id) {
+window.deleteClubProfile = async function (id) {
     if (!confirm('Are you absolutely sure you want to remove this club profile from the campus register?')) return;
 
     try {
@@ -156,18 +156,18 @@ window.deleteClubProfile = async function(id) {
 
         const result = await response.json();
         alert(result.message);
-        fetchClubRoster(); // Instantly refresh our cards panel matrix viewport
+        fetchClubRoster(); // Refresh the cards
     } catch (err) {
         alert(`Deletion failure: ${err.message}`);
     }
 };
 
-// Simple utility function to prevent malicious characters (XSS safety)
+// Prevents malicious characters from being rendered as HTML (XSS safety)
 function escapeHTML(str) {
     if (!str) return '';
-    return str.replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;')
-              .replace(/'/g, '&#039;');
+    return String(str).replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
